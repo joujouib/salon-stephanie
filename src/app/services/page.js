@@ -33,7 +33,6 @@ export default function ServicesPage() {
           <button
             key={category}
             onClick={() => {
-  alert("clicked!");
   setActiveCategory(category);
 }}
             className={
