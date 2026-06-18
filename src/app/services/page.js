@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
+import { displayFont } from "../fonts";
 const services = [
   { id: 1, name: "Balayage", category: "Hair", price: "$70–90", duration: "90 min" },
   { id: 2, name: "Haircut & Style", category: "Hair", price: "$25–35", duration: "45 min" },
@@ -24,7 +24,7 @@ export default function ServicesPage() {
   return (
     <section className="min-h-screen px-6 pt-28 pb-16 max-w-5xl mx-auto">
 
-      <h1 className="text-gold text-5xl font-bold text-center">Services</h1>
+      <h1 className={`${displayFont.className} text-gold text-5xl font-bold text-center`}>Services</h1>
       <p className="text-cream/70 text-center mt-3">Hair & makeup, priced with care.</p>
 
       {/* Filter buttons */}

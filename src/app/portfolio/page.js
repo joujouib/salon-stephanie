@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ReactCompareSlider, ReactCompareSliderImage } from "react-compare-slider";
+import { displayFont } from "../fonts";
 
 const portfolio = [
   { id: 1, title: "Honey Blonde Balayage", category: "Color",
@@ -31,7 +32,7 @@ export default function PortfolioPage() {
   return (
     <section className="min-h-screen px-6 pt-28 pb-16 max-w-5xl mx-auto">
 
-      <h1 className="text-gold text-5xl font-bold text-center">Portfolio</h1>
+      <h1 className={`${displayFont.className} text-gold text-5xl font-bold text-center`}>Portfolio</h1>
       <p className="text-cream/70 text-center mt-3">Drag each image to reveal the transformation.</p>
 
       {/* Filter buttons */}

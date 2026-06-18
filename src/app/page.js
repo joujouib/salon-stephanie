@@ -1,4 +1,4 @@
-import { displayFont } from "./layout";
+import { displayFont } from "./fonts";
 
 export default function Home() {
   return (
