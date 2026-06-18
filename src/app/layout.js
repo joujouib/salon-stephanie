@@ -1,6 +1,7 @@
 import "./globals.css";
 import { dmSans } from "./fonts";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export const metadata = {
   title: "Salon Stephanie",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }) {
       <body className={`${dmSans.className} bg-ink min-h-screen text-cream`}>
         <Navbar />
         {children}
+        <Footer />
       </body>
     </html>
   );
