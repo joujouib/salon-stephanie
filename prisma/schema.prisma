@@ -16,4 +16,45 @@ model Service {
   duration    Int
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+
+  queueEntries QueueEntry[]
+}
+model Staff {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   @default("helper")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  queueEntries QueueEntry[]
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  language  String   @default("ar")
+  createdAt DateTime @default(now())
+
+  queueEntries QueueEntry[]
+}
+
+model QueueEntry {
+  id          String   @id @default(uuid())
+  status      String   @default("waiting")
+  notes       String?
+  joinedAt    DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
+
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+
+  createdAt   DateTime @default(now())
 }
