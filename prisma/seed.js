@@ -11,18 +11,30 @@ const services = [
   { name: "Bridal Makeup", category: "Makeup", priceMin: 90, priceMax: 120, duration: 75 },
 ];
 
+const staff = [
+  { name: "Stephanie", role: "owner", isActive: true },
+  { name: "Helper One", role: "helper", isActive: true },
+  { name: "Helper Two", role: "helper", isActive: true },
+];
+
 async function main() {
-  console.log("Seeding services...");
+  console.log("Seeding...");
 
-  // Clear existing services first, so re-running doesn't duplicate
+  // Services
   await prisma.service.deleteMany();
-
-  // Insert all services
   for (const service of services) {
     await prisma.service.create({ data: service });
   }
+  console.log("Seeded", services.length, "services.");
 
-  console.log("Done! Seeded", services.length, "services.");
+  // Staff
+  await prisma.staff.deleteMany();
+  for (const member of staff) {
+    await prisma.staff.create({ data: member });
+  }
+  console.log("Seeded", staff.length, "staff.");
+
+  console.log("Done!");
 }
 
 main()
