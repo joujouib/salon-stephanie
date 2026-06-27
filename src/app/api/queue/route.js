@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-
+import { auth } from "@clerk/nextjs/server";
 // GET /api/queue — returns all waiting + in-progress queue entries
 export async function GET() {
   const entries = await prisma.queueEntry.findMany({
@@ -19,6 +19,12 @@ export async function GET() {
 }
 // POST /api/queue — add a new entry to the queue
 export async function POST(request) {
+  // Require login to add to the queue
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await request.json();
 
   const { clientId, serviceId, staffId, notes } = body;

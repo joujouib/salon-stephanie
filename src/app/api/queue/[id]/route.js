@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-
+import { auth } from "@clerk/nextjs/server";
 // PATCH /api/queue/[id] — update one entry's status
 export async function PATCH(request, { params }) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const body = await request.json();
   const { status } = body;

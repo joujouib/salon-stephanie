@@ -1,4 +1,5 @@
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import { dmSans } from "./fonts";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -10,12 +11,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${dmSans.className} bg-ink min-h-screen text-cream`}>
-        <Navbar />
-        {children}
-        <Footer />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={`${dmSans.className} bg-ink min-h-screen text-cream`}>
+          <Navbar />
+          {children}
+          <Footer />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
