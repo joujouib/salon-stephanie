@@ -26,7 +26,11 @@ export async function PATCH(request, { params }) {
   const entry = await prisma.queueEntry.update({
     where: { id },
     data,
-    include: { client: true, service: true, staff: true },
+    include: {
+      client: true,
+      staff: true,
+      visitServices: { include: { service: true } },
+    },
   });
 
   return NextResponse.json(entry);

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { estimateWait } from "@/lib/waitTime";
 
 export default function AdminQueuePage() {
   const [entries, setEntries] = useState([]);
   const [clients, setClients] = useState([]);
   const [services, setServices] = useState([]);
+  const [activeStaffCount, setActiveStaffCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -14,14 +16,16 @@ export default function AdminQueuePage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
 
   async function loadAll() {
-    const [queueRes, clientsRes, servicesRes] = await Promise.all([
+    const [queueRes, clientsRes, servicesRes, staffRes] = await Promise.all([
       fetch("/api/queue"),
       fetch("/api/clients"),
       fetch("/api/services"),
+      fetch("/api/staff"),
     ]);
     setEntries(await queueRes.json());
     setClients(await clientsRes.json());
     setServices(await servicesRes.json());
+    setActiveStaffCount((await staffRes.json()).length);
     setLoading(false);
   }
 
@@ -38,7 +42,6 @@ export default function AdminQueuePage() {
     loadAll();
   }
 
-  // Toggle a service checkbox on/off
   function toggleService(serviceId) {
     setSelectedServiceIds((current) =>
       current.includes(serviceId)
@@ -82,7 +85,6 @@ export default function AdminQueuePage() {
     loadAll();
   }
 
-  // Sum the durations of an entry's services
   function totalDuration(entry) {
     return entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
   }
@@ -95,10 +97,15 @@ export default function AdminQueuePage() {
     );
   }
 
+  const estimatedWait = estimateWait(entries, activeStaffCount);
+
   return (
     <section className="min-h-screen px-6 pt-28 pb-16 max-w-4xl mx-auto">
       <h1 className="text-gold text-4xl font-bold">Queue Manager</h1>
-      <p className="text-cream/60 mt-2">{entries.length} in the queue</p>
+      <p className="text-cream/60 mt-2">
+        {entries.length} in the queue ·{" "}
+        {estimatedWait === 0 ? "no wait" : `~${estimatedWait} min for a new walk-in`}
+      </p>
 
       {/* Add walk-in form */}
       <div className="bg-cream/5 border border-gold/20 rounded-xl p-5 mt-8">

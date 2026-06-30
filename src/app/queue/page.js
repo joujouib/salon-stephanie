@@ -1,5 +1,6 @@
 import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
+import { estimateWait } from "@/lib/waitTime";
 
 export default async function QueuePage() {
   const entries = await prisma.queueEntry.findMany({
@@ -12,17 +13,7 @@ export default async function QueuePage() {
   const peopleWaiting = entries.length;
   const activeStaff = await prisma.staff.count({ where: { isActive: true } });
 
-  // Sum every service duration across all entries
-  const totalMinutes = entries.reduce((sum, entry) => {
-    const entryDuration = entry.visitServices.reduce(
-      (s, vs) => s + vs.service.duration,
-      0
-    );
-    return sum + entryDuration;
-  }, 0);
-
-  const estimatedWait =
-    activeStaff > 0 ? Math.ceil(totalMinutes / activeStaff) : totalMinutes;
+  const estimatedWait = estimateWait(entries, activeStaff);
 
   return (
     <section className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
@@ -43,7 +34,9 @@ export default async function QueuePage() {
             </p>
           </div>
           <div>
-            <p className="text-cream/80 text-2xl">~{estimatedWait} min</p>
+            <p className="text-cream/80 text-2xl">
+              {estimatedWait === 0 ? "No wait!" : `~${estimatedWait} min`}
+            </p>
             <p className="text-cream/50 text-sm mt-1">estimated wait</p>
           </div>
         </div>
