@@ -9,8 +9,8 @@ export async function GET() {
     },
     include: {
       client: true,
-      service: true,
       staff: true,
+      visitServices: { include: { service: true } },
     },
     orderBy: { joinedAt: "asc" },
   });
@@ -19,20 +19,18 @@ export async function GET() {
 }
 // POST /api/queue — add a new entry to the queue
 export async function POST(request) {
-  // Require login to add to the queue
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
+  const { clientId, serviceIds, staffId, notes } = body;
 
-  const { clientId, serviceId, staffId, notes } = body;
-
-  // Basic validation — these are required
-  if (!clientId || !serviceId) {
+  // Validation — now expects an array of service IDs
+  if (!clientId || !serviceIds || serviceIds.length === 0) {
     return NextResponse.json(
-      { error: "clientId and serviceId are required" },
+      { error: "clientId and at least one service are required" },
       { status: 400 }
     );
   }
@@ -40,15 +38,18 @@ export async function POST(request) {
   const entry = await prisma.queueEntry.create({
     data: {
       clientId,
-      serviceId,
       staffId: staffId || null,
       notes: notes || null,
       status: "waiting",
+      // Create the join rows — one per chosen service
+      visitServices: {
+        create: serviceIds.map((serviceId) => ({ serviceId })),
+      },
     },
     include: {
       client: true,
-      service: true,
       staff: true,
+      visitServices: { include: { service: true } },
     },
   });
 

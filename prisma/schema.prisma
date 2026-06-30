@@ -17,7 +17,7 @@ model Service {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  queueEntries QueueEntry[]
+  visitServices VisitService[]
 }
 model Staff {
   id        String   @id @default(uuid())
@@ -53,10 +53,21 @@ model QueueEntry {
   staffId     String?
   staff       Staff?   @relation(fields: [staffId], references: [id])
 
-  serviceId   String
-  service     Service  @relation(fields: [serviceId], references: [id])
+  visitServices VisitService[]
 
   createdAt   DateTime @default(now())
+}
+model VisitService {
+  id           String   @id @default(uuid())
+  priceCharged Int?
+
+  queueEntryId String
+  queueEntry   QueueEntry @relation(fields: [queueEntryId], references: [id], onDelete: Cascade)
+
+  serviceId    String
+  service      Service    @relation(fields: [serviceId], references: [id])
+
+  createdAt    DateTime @default(now())
 }
 model Color {
   id                 String   @id @default(uuid())

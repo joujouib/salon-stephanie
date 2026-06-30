@@ -2,20 +2,25 @@ import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
 
 export default async function QueuePage() {
-  // Fetch waiting + in-progress entries directly
   const entries = await prisma.queueEntry.findMany({
     where: { status: { in: ["waiting", "in_progress"] } },
-    include: { service: true },
+    include: {
+      visitServices: { include: { service: true } },
+    },
   });
 
-  // How many people are currently in the queue
   const peopleWaiting = entries.length;
-
-  // Count active staff (to estimate wait)
   const activeStaff = await prisma.staff.count({ where: { isActive: true } });
 
-  // Simple estimate: total service time / active staff
-  const totalMinutes = entries.reduce((sum, e) => sum + e.service.duration, 0);
+  // Sum every service duration across all entries
+  const totalMinutes = entries.reduce((sum, entry) => {
+    const entryDuration = entry.visitServices.reduce(
+      (s, vs) => s + vs.service.duration,
+      0
+    );
+    return sum + entryDuration;
+  }, 0);
+
   const estimatedWait =
     activeStaff > 0 ? Math.ceil(totalMinutes / activeStaff) : totalMinutes;
 
@@ -37,7 +42,6 @@ export default async function QueuePage() {
               {peopleWaiting === 1 ? "person" : "people"} currently at the salon
             </p>
           </div>
-
           <div>
             <p className="text-cream/80 text-2xl">~{estimatedWait} min</p>
             <p className="text-cream/50 text-sm mt-1">estimated wait</p>

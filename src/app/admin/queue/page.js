@@ -10,10 +10,9 @@ export default function AdminQueuePage() {
 
   // Form state
   const [selectedClient, setSelectedClient] = useState("");
-  const [selectedService, setSelectedService] = useState("");
   const [newClientName, setNewClientName] = useState("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState([]);
 
-  // Load everything the page needs
   async function loadAll() {
     const [queueRes, clientsRes, servicesRes] = await Promise.all([
       fetch("/api/queue"),
@@ -30,7 +29,6 @@ export default function AdminQueuePage() {
     loadAll();
   }, []);
 
-  // Update a queue entry's status
   async function updateStatus(id, status) {
     await fetch(`/api/queue/${id}`, {
       method: "PATCH",
@@ -40,17 +38,23 @@ export default function AdminQueuePage() {
     loadAll();
   }
 
-  // Add a walk-in to the queue
-  async function addToQueue() {
-
-    if (selectedClient && newClientName.trim()) {
-    alert("Please either pick an existing client OR type a new name, not both.");
-    return;
+  // Toggle a service checkbox on/off
+  function toggleService(serviceId) {
+    setSelectedServiceIds((current) =>
+      current.includes(serviceId)
+        ? current.filter((id) => id !== serviceId)
+        : [...current, serviceId]
+    );
   }
-  
+
+  async function addToQueue() {
+    if (selectedClient && newClientName.trim()) {
+      alert("Please either pick an existing client OR type a new name, not both.");
+      return;
+    }
+
     let clientId = selectedClient;
 
-    // If a new client name was typed, create that client first
     if (newClientName.trim()) {
       const res = await fetch("/api/clients", {
         method: "POST",
@@ -61,22 +65,26 @@ export default function AdminQueuePage() {
       clientId = newClient.id;
     }
 
-    if (!clientId || !selectedService) {
-      alert("Please choose a client (or type a new name) and a service.");
+    if (!clientId || selectedServiceIds.length === 0) {
+      alert("Please choose a client (or type a new name) and at least one service.");
       return;
     }
 
     await fetch("/api/queue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, serviceId: selectedService }),
+      body: JSON.stringify({ clientId, serviceIds: selectedServiceIds }),
     });
 
-    // Reset the form
     setSelectedClient("");
-    setSelectedService("");
     setNewClientName("");
+    setSelectedServiceIds([]);
     loadAll();
+  }
+
+  // Sum the durations of an entry's services
+  function totalDuration(entry) {
+    return entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
   }
 
   if (loading) {
@@ -96,8 +104,7 @@ export default function AdminQueuePage() {
       <div className="bg-cream/5 border border-gold/20 rounded-xl p-5 mt-8">
         <h2 className="text-gold text-lg font-semibold mb-4">Add a walk-in</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Existing client dropdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="text-cream/60 text-sm block mb-1">Existing client</label>
             <select
@@ -112,7 +119,6 @@ export default function AdminQueuePage() {
             </select>
           </div>
 
-          {/* New client name */}
           <div>
             <label className="text-cream/60 text-sm block mb-1">…or new client</label>
             <input
@@ -123,32 +129,34 @@ export default function AdminQueuePage() {
               className="w-full bg-ink border border-cream/20 rounded-lg px-3 py-2 text-cream"
             />
           </div>
+        </div>
 
-          {/* Service dropdown */}
-          <div>
-            <label className="text-cream/60 text-sm block mb-1">Service</label>
-            <select
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value)}
-              className="w-full bg-ink border border-cream/20 rounded-lg px-3 py-2 text-cream"
-            >
-              <option value="">— choose —</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.duration} min)</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Submit */}
-          <div className="flex items-end">
-            <button
-              onClick={addToQueue}
-              className="w-full bg-gold text-ink px-4 py-2 rounded-lg font-semibold hover:bg-gold-light transition-colors"
-            >
-              Add to Queue
-            </button>
+        {/* Service checkboxes */}
+        <div className="mb-4">
+          <label className="text-cream/60 text-sm block mb-2">Services</label>
+          <div className="flex flex-wrap gap-2">
+            {services.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => toggleService(s.id)}
+                className={
+                  selectedServiceIds.includes(s.id)
+                    ? "bg-gold text-ink px-3 py-2 rounded-lg text-sm font-medium"
+                    : "bg-ink text-cream/80 px-3 py-2 rounded-lg text-sm border border-cream/20 hover:border-gold/40 transition-colors"
+                }
+              >
+                {s.name} ({s.duration}m)
+              </button>
+            ))}
           </div>
         </div>
+
+        <button
+          onClick={addToQueue}
+          className="bg-gold text-ink px-5 py-2 rounded-lg font-semibold hover:bg-gold-light transition-colors"
+        >
+          Add to Queue
+        </button>
       </div>
 
       {/* Queue list */}
@@ -164,7 +172,9 @@ export default function AdminQueuePage() {
               <div>
                 <h3 className="text-gold text-xl font-semibold">{entry.client.name}</h3>
                 <p className="text-cream/70 text-sm">
-                  {entry.service.name} · {entry.service.duration} min
+                  {entry.visitServices.map((vs) => vs.service.name).join(" + ")}
+                  {" · "}
+                  {totalDuration(entry)} min
                 </p>
                 <span
                   className={
