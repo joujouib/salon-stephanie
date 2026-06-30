@@ -10,6 +10,8 @@ export default function Navbar() {
     { href: "/", label: "Home" },
     { href: "/services", label: "Services" },
     { href: "/portfolio", label: "Portfolio" },
+    { href: "/colors", label: "Colors" },
+    { href: "/find-your-color", label: "Find Your Color" },
     { href: "/queue", label: "Queue" },
     { href: "/about", label: "About" },
   ];
