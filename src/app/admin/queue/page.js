@@ -10,6 +10,9 @@ export default function AdminQueuePage() {
   const [activeStaffCount, setActiveStaffCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Is the "add walk-in" popup open?
+  const [showAddForm, setShowAddForm] = useState(false);
+
   // Form state
   const [selectedClient, setSelectedClient] = useState("");
   const [newClientName, setNewClientName] = useState("");
@@ -42,12 +45,26 @@ export default function AdminQueuePage() {
     loadAll();
   }
 
+  // Remove with a confirmation, so nobody is removed by accident
+  function confirmRemove(entry) {
+    if (window.confirm(`Remove ${entry.client.name} from the queue?`)) {
+      updateStatus(entry.id, "cancelled");
+    }
+  }
+
   function toggleService(serviceId) {
     setSelectedServiceIds((current) =>
       current.includes(serviceId)
         ? current.filter((id) => id !== serviceId)
         : [...current, serviceId]
     );
+  }
+
+  function closeForm() {
+    setSelectedClient("");
+    setNewClientName("");
+    setSelectedServiceIds([]);
+    setShowAddForm(false);
   }
 
   async function addToQueue() {
@@ -69,7 +86,7 @@ export default function AdminQueuePage() {
     }
 
     if (!clientId || selectedServiceIds.length === 0) {
-      alert("Please choose a client (or type a new name) and at least one service.");
+      alert("Please choose a client (or type a name) and at least one service.");
       return;
     }
 
@@ -79,9 +96,7 @@ export default function AdminQueuePage() {
       body: JSON.stringify({ clientId, serviceIds: selectedServiceIds }),
     });
 
-    setSelectedClient("");
-    setNewClientName("");
-    setSelectedServiceIds([]);
+    closeForm();
     loadAll();
   }
 
@@ -91,8 +106,8 @@ export default function AdminQueuePage() {
 
   if (loading) {
     return (
-      <section className="min-h-screen px-6 pt-28 max-w-4xl mx-auto">
-        <p className="text-cream/60">Loading queue...</p>
+      <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
+        <p className="text-cream text-2xl">Loading…</p>
       </section>
     );
   }
@@ -100,105 +115,55 @@ export default function AdminQueuePage() {
   const estimatedWait = estimateWait(entries, activeStaffCount);
 
   return (
-    <section className="min-h-screen px-6 pt-28 pb-16 max-w-4xl mx-auto">
-      <h1 className="text-gold text-4xl font-bold">Queue Manager</h1>
-      <p className="text-cream/60 mt-2">
-        {entries.length} in the queue ·{" "}
-        {estimatedWait === 0 ? "no wait" : `~${estimatedWait} min for a new walk-in`}
+    <section className="min-h-screen px-6 pt-28 pb-24 max-w-3xl mx-auto">
+      {/* Header */}
+      <h1 className="text-gold text-5xl font-bold">Today's Queue</h1>
+      <p className="text-cream text-2xl mt-3">
+        {entries.length} {entries.length === 1 ? "person" : "people"} waiting
+        {estimatedWait > 0 && ` · about ${estimatedWait} min`}
       </p>
 
-      {/* Add walk-in form */}
-      <div className="bg-cream/5 border border-gold/20 rounded-xl p-5 mt-8">
-        <h2 className="text-gold text-lg font-semibold mb-4">Add a walk-in</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="text-cream/60 text-sm block mb-1">Existing client</label>
-            <select
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-              className="w-full bg-ink border border-cream/20 rounded-lg px-3 py-2 text-cream"
-            >
-              <option value="">— choose —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-cream/60 text-sm block mb-1">…or new client</label>
-            <input
-              type="text"
-              value={newClientName}
-              onChange={(e) => setNewClientName(e.target.value)}
-              placeholder="Type a name"
-              className="w-full bg-ink border border-cream/20 rounded-lg px-3 py-2 text-cream"
-            />
-          </div>
-        </div>
-
-        {/* Service checkboxes */}
-        <div className="mb-4">
-          <label className="text-cream/60 text-sm block mb-2">Services</label>
-          <div className="flex flex-wrap gap-2">
-            {services.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => toggleService(s.id)}
-                className={
-                  selectedServiceIds.includes(s.id)
-                    ? "bg-gold text-ink px-3 py-2 rounded-lg text-sm font-medium"
-                    : "bg-ink text-cream/80 px-3 py-2 rounded-lg text-sm border border-cream/20 hover:border-gold/40 transition-colors"
-                }
-              >
-                {s.name} ({s.duration}m)
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          onClick={addToQueue}
-          className="bg-gold text-ink px-5 py-2 rounded-lg font-semibold hover:bg-gold-light transition-colors"
-        >
-          Add to Queue
-        </button>
-      </div>
+      {/* Big add button */}
+      <button
+        onClick={() => setShowAddForm(true)}
+        className="w-full bg-gold text-ink text-2xl font-bold py-6 rounded-2xl mt-8 hover:bg-gold-light transition-colors"
+      >
+        ➕  Add Walk-in
+      </button>
 
       {/* Queue list */}
-      <div className="mt-8 space-y-4">
+      <div className="mt-8 space-y-5">
         {entries.length === 0 ? (
-          <p className="text-cream/50">The queue is empty.</p>
+          <p className="text-cream/80 text-2xl text-center mt-12">
+            No one is waiting right now.
+          </p>
         ) : (
           entries.map((entry) => (
             <div
               key={entry.id}
-              className="bg-cream/5 border border-gold/20 rounded-xl p-5 flex items-center justify-between"
+              className="bg-cream/10 border-2 border-gold/30 rounded-2xl p-6"
             >
-              <div>
-                <h3 className="text-gold text-xl font-semibold">{entry.client.name}</h3>
-                <p className="text-cream/70 text-sm">
-                  {entry.visitServices.map((vs) => vs.service.name).join(" + ")}
-                  {" · "}
-                  {totalDuration(entry)} min
-                </p>
-                <span
-                  className={
-                    entry.status === "in_progress"
-                      ? "text-xs text-ink bg-gold rounded-full px-2 py-0.5 mt-2 inline-block"
-                      : "text-xs text-cream/60 border border-cream/20 rounded-full px-2 py-0.5 mt-2 inline-block"
-                  }
-                >
-                  {entry.status === "in_progress" ? "in progress" : "waiting"}
-                </span>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h3 className="text-gold text-3xl font-bold">{entry.client.name}</h3>
+                  <p className="text-cream text-xl mt-2">
+                    {entry.visitServices.map((vs) => vs.service.name).join(" + ")}
+                  </p>
+                  <p className="text-cream/80 text-lg mt-1">{totalDuration(entry)} minutes</p>
+                  {entry.status === "in_progress" && (
+                    <span className="inline-block mt-3 text-xl text-ink bg-gold rounded-full px-4 py-1 font-bold">
+                      Being served
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex gap-2">
+              {/* Big action buttons */}
+              <div className="flex gap-3 mt-5">
                 {entry.status === "waiting" && (
                   <button
                     onClick={() => updateStatus(entry.id, "in_progress")}
-                    className="bg-gold/20 text-gold border border-gold/40 px-4 py-2 rounded-lg text-sm hover:bg-gold/30 transition-colors"
+                    className="flex-1 bg-gold/20 text-gold border-2 border-gold/50 text-xl font-bold py-4 rounded-xl hover:bg-gold/30 transition-colors"
                   >
                     Start
                   </button>
@@ -206,14 +171,14 @@ export default function AdminQueuePage() {
                 {entry.status === "in_progress" && (
                   <button
                     onClick={() => updateStatus(entry.id, "done")}
-                    className="bg-gold text-ink px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gold-light transition-colors"
+                    className="flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl hover:bg-gold-light transition-colors"
                   >
-                    Done
+                    Finished
                   </button>
                 )}
                 <button
-                  onClick={() => updateStatus(entry.id, "cancelled")}
-                  className="text-cream/50 border border-cream/20 px-4 py-2 rounded-lg text-sm hover:border-cream/40 transition-colors"
+                  onClick={() => confirmRemove(entry)}
+                  className="flex-1 text-cream border-2 border-cream/30 text-xl font-bold py-4 rounded-xl hover:border-cream/60 transition-colors"
                 >
                   Remove
                 </button>
@@ -222,6 +187,72 @@ export default function AdminQueuePage() {
           ))
         )}
       </div>
+
+      {/* Add walk-in popup (modal) */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-ink border-2 border-gold/40 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-gold text-3xl font-bold mb-6">Add Walk-in</h2>
+
+            {/* Existing client */}
+            <label className="text-cream text-xl block mb-2">Choose a client</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-xl mb-5"
+            >
+              <option value="">— choose —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            {/* New client */}
+            <label className="text-cream text-xl block mb-2">…or type a new name</label>
+            <input
+              type="text"
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+              placeholder="New client name"
+              className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-xl mb-6 placeholder:text-cream/40"
+            />
+
+            {/* Services */}
+            <label className="text-cream text-xl block mb-3">Services</label>
+            <div className="flex flex-wrap gap-3 mb-8">
+              {services.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => toggleService(s.id)}
+                  className={
+                    selectedServiceIds.includes(s.id)
+                      ? "bg-gold text-ink text-lg font-bold px-5 py-3 rounded-xl"
+                      : "bg-cream/10 text-cream text-lg px-5 py-3 rounded-xl border-2 border-cream/30"
+                  }
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={addToQueue}
+                className="flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl hover:bg-gold-light transition-colors"
+              >
+                Add
+              </button>
+              <button
+                onClick={closeForm}
+                className="flex-1 text-cream border-2 border-cream/30 text-xl font-bold py-4 rounded-xl hover:border-cream/60 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
