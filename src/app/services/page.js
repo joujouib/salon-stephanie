@@ -2,8 +2,11 @@ import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
 import ServicesList from "@/components/ServicesList";
 
+export const dynamic = "force-dynamic";
+
 export default async function ServicesPage() {
   const services = await prisma.service.findMany({
+    where: { isActive: true },
     orderBy: { category: "asc" },
   });
 
