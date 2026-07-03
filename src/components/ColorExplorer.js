@@ -38,11 +38,30 @@ export default function ColorExplorer({ colors }) {
             key={color.id}
             className="bg-cream/5 border border-gold/20 rounded-xl overflow-hidden hover:border-gold/60 transition-colors"
           >
-            {/* The color swatch */}
-            <div
-              className="h-32 w-full"
-              style={{ backgroundColor: color.hex }}
-            ></div>
+            {/* The hair-strand swatch, tinted with the color */}
+            <div className="relative h-40 w-full overflow-hidden">
+              {/* Base hair strand image */}
+              <img
+                src="/hair-strand.jpg"
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* Color tint blended over the strands */}
+              <div
+                className="absolute inset-0 mix-blend-multiply"
+                style={{ backgroundColor: color.hex }}
+              ></div>
+              {/* Shine layer */}
+              <div
+                className="absolute inset-0 mix-blend-soft-light opacity-50"
+                style={{ backgroundColor: color.hex }}
+              ></div>
+              {/* For very dark colors, lift the texture back so strands show */}
+              <div
+                className="absolute inset-0 mix-blend-overlay opacity-30"
+                style={{ backgroundColor: "#888888" }}
+              ></div>
+            </div>
 
             {/* Color info */}
             <div className="p-4">
