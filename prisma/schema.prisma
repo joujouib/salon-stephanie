@@ -55,6 +55,8 @@ model QueueEntry {
 
   visitServices VisitService[]
 
+  durationOverride Int?
+
   createdAt   DateTime @default(now())
 }
 model VisitService {
@@ -79,4 +81,8 @@ model Color {
   suitableFor        String   @default("light,medium,dark")
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
+}
+model SalonSettings {
+  id               String @id @default(uuid())
+  activeStaffCount Int    @default(3)
 }

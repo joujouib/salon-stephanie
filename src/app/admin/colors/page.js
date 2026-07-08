@@ -7,6 +7,7 @@ const CATEGORIES = ["Blonde", "Brown", "Red", "Black"];
 export default function AdminColorsPage() {
   const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -19,9 +20,19 @@ export default function AdminColorsPage() {
   const [lightening, setLightening] = useState("no"); // no / little / yes
 
   async function loadColors() {
-    const res = await fetch("/api/colors/all");
-    setColors(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch("/api/colors/all");
+      if (!res.ok) {
+        setError(true);
+        return;
+      }
+      setColors(await res.json());
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -100,6 +111,16 @@ export default function AdminColorsPage() {
     return (
       <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
         <p className="text-cream text-2xl">Loading…</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
+        <p className="text-cream text-2xl">
+          Something went wrong. Please refresh the page or log in again.
+        </p>
       </section>
     );
   }

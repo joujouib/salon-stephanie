@@ -73,7 +73,7 @@ export default function ColorExplorer({ colors }) {
               {/* Lightening flag */}
               {color.lighteningLevel === "heavy" && (
                 <p className="text-cream/60 text-xs mt-3">
-                  ⚠ Usually needs lightening
+                  Usually needs pre-lightening first
                 </p>
               )}
               {color.lighteningLevel === "mild" && (

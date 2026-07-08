@@ -7,6 +7,7 @@ const CATEGORIES = ["Hair", "Makeup"];
 export default function AdminServicesPage() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -20,9 +21,19 @@ export default function AdminServicesPage() {
   const [duration, setDuration] = useState("");
 
   async function loadServices() {
-    const res = await fetch("/api/services/all");
-    setServices(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch("/api/services/all");
+      if (!res.ok) {
+        setError(true);
+        return;
+      }
+      setServices(await res.json());
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -93,6 +104,16 @@ export default function AdminServicesPage() {
     return (
       <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
         <p className="text-cream text-2xl">Loading…</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
+        <p className="text-cream text-2xl">
+          Something went wrong. Please refresh the page or log in again.
+        </p>
       </section>
     );
   }

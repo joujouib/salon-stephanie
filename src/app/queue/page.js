@@ -2,6 +2,8 @@ import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
 import { estimateWait } from "@/lib/waitTime";
 
+export const dynamic = "force-dynamic";
+
 export default async function QueuePage() {
   const entries = await prisma.queueEntry.findMany({
     where: { status: { in: ["waiting", "in_progress"] } },
@@ -11,7 +13,8 @@ export default async function QueuePage() {
   });
 
   const peopleWaiting = entries.length;
-  const activeStaff = await prisma.staff.count({ where: { isActive: true } });
+  const settings = await prisma.salonSettings.findFirst();
+  const activeStaff = settings ? settings.activeStaffCount : 3;
 
   const estimatedWait = estimateWait(entries, activeStaff);
 

@@ -2,6 +2,8 @@ import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
 import ColorQuiz from "@/components/ColorQuiz";
 
+export const dynamic = "force-dynamic";
+
 export default async function FindYourColorPage() {
   const colors = await prisma.color.findMany({
     where: { isActive: true },

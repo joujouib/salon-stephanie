@@ -57,7 +57,7 @@ export default function ColorQuiz({ colors }) {
                 {color.achievable ? (
                   <p className="text-cream/60 text-xs mt-2">✓ Achievable on your hair</p>
                 ) : (
-                  <p className="text-cream/60 text-xs mt-2">⚠ Would need lightening first</p>
+                  <p className="text-cream/60 text-xs mt-2">Achievable with pre-lightening ✨</p>
                 )}
               </div>
             </div>

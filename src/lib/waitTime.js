@@ -6,7 +6,9 @@ export function estimateWait(entries, activeStaffCount) {
 
   // Helper: total service minutes for one entry
   const entryDuration = (entry) =>
-    entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
+    entry.durationOverride && entry.durationOverride > 0
+      ? entry.durationOverride
+      : entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
 
   // Step 1: figure out when each active chair becomes free (in minutes from now).
   // Start every chair as free now (0).

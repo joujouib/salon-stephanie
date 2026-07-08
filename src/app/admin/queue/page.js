@@ -9,6 +9,7 @@ export default function AdminQueuePage() {
   const [services, setServices] = useState([]);
   const [activeStaffCount, setActiveStaffCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -16,24 +17,62 @@ export default function AdminQueuePage() {
   const [clientSearch, setClientSearch] = useState("");
   const [chosenClient, setChosenClient] = useState(null); // {id, name} or null
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
+  const [durationMinutes, setDurationMinutes] = useState("");
 
   async function loadAll() {
-    const [queueRes, clientsRes, servicesRes, staffRes] = await Promise.all([
-      fetch("/api/queue"),
-      fetch("/api/clients"),
-      fetch("/api/services"),
-      fetch("/api/staff"),
-    ]);
-    setEntries(await queueRes.json());
-    setClients(await clientsRes.json());
-    setServices(await servicesRes.json());
-    setActiveStaffCount((await staffRes.json()).length);
-    setLoading(false);
+    try {
+      const [queueRes, clientsRes, servicesRes, settingsRes] = await Promise.all([
+        fetch("/api/queue"),
+        fetch("/api/clients"),
+        fetch("/api/services"),
+        fetch("/api/settings"),
+      ]);
+
+      if (!queueRes.ok || !clientsRes.ok || !servicesRes.ok || !settingsRes.ok) {
+        setError(true);
+        return;
+      }
+
+      const [queueData, clientsData, servicesData, settingsData] = await Promise.all([
+        queueRes.json(),
+        clientsRes.json(),
+        servicesRes.json(),
+        settingsRes.json(),
+      ]);
+
+      setEntries(queueData);
+      setClients(clientsData);
+      setServices(servicesData);
+      setActiveStaffCount(settingsData.activeStaffCount);
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     loadAll();
   }, []);
+
+  // Keep the duration field in sync with the auto-computed sum whenever services change
+  useEffect(() => {
+    const autoSum = selectedServiceIds.reduce((sum, id) => {
+      const service = services.find((s) => s.id === id);
+      return sum + (service ? service.duration : 0);
+    }, 0);
+    setDurationMinutes(String(autoSum));
+  }, [selectedServiceIds, services]);
+
+  async function updateStaffCount(count) {
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activeStaffCount: count }),
+    });
+    loadAll();
+  }
 
   async function updateStatus(id, status) {
     await fetch(`/api/queue/${id}`, {
@@ -62,7 +101,13 @@ export default function AdminQueuePage() {
     setClientSearch("");
     setChosenClient(null);
     setSelectedServiceIds([]);
+    setDurationMinutes("");
     setShowAddForm(false);
+  }
+
+  // Normalize a name: trim, lowercase, collapse multiple spaces
+  function normalizeName(str) {
+    return str.trim().toLowerCase().replace(/\s+/g, " ");
   }
 
   // Matching clients as she types (case-insensitive), only when no client chosen yet
@@ -75,7 +120,7 @@ export default function AdminQueuePage() {
 
   // Does an exact-name client already exist? (for the duplicate warning)
   const exactMatch = clients.find(
-    (c) => c.name.toLowerCase() === clientSearch.trim().toLowerCase()
+    (c) => normalizeName(c.name) === normalizeName(clientSearch)
   );
 
   async function addToQueue() {
@@ -103,10 +148,20 @@ export default function AdminQueuePage() {
       return;
     }
 
+    const autoSum = selectedServiceIds.reduce((sum, id) => {
+      const service = services.find((s) => s.id === id);
+      return sum + (service ? service.duration : 0);
+    }, 0);
+    const enteredDuration = Number(durationMinutes);
+    const body = { clientId, serviceIds: selectedServiceIds };
+    if (enteredDuration !== autoSum) {
+      body.durationOverride = enteredDuration;
+    }
+
     await fetch("/api/queue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, serviceIds: selectedServiceIds }),
+      body: JSON.stringify(body),
     });
 
     closeForm();
@@ -114,6 +169,7 @@ export default function AdminQueuePage() {
   }
 
   function totalDuration(entry) {
+    if (entry.durationOverride) return entry.durationOverride;
     return entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
   }
 
@@ -131,6 +187,16 @@ export default function AdminQueuePage() {
     );
   }
 
+  if (error) {
+    return (
+      <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
+        <p className="text-cream text-2xl">
+          Something went wrong. Please refresh the page or log in again.
+        </p>
+      </section>
+    );
+  }
+
   const estimatedWait = estimateWait(entries, activeStaffCount);
 
   return (
@@ -140,6 +206,21 @@ export default function AdminQueuePage() {
         {entries.length} {entries.length === 1 ? "person" : "people"} waiting
         {estimatedWait > 0 && ` · about ${estimatedWait} min`}
       </p>
+
+      <div className="flex items-center gap-3 mt-4">
+        <label className="text-cream text-xl">Staff working today:</label>
+        <select
+          value={activeStaffCount}
+          onChange={(e) => updateStaffCount(Number(e.target.value))}
+          className="bg-ink border-2 border-cream/40 text-cream text-xl rounded-xl px-4 py-2"
+        >
+          {[1, 2, 3, 4, 5].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <button
         onClick={() => setShowAddForm(true)}
@@ -247,7 +328,9 @@ export default function AdminQueuePage() {
                 {/* Duplicate warning / new client hint */}
                 {clientSearch.trim() && !exactMatch && (
                   <p className="text-cream/70 text-base mt-3">
-                    No exact match — a new client “{clientSearch.trim()}” will be added.
+                    {matchingClients.length > 0 && clientSearch.trim().length >= 3
+                      ? `No exact match — tapping Add will create a new client "${clientSearch.trim()}". If they're listed above, tap their name instead.`
+                      : `No exact match — a new client "${clientSearch.trim()}" will be added.`}
                   </p>
                 )}
                 {exactMatch && (
@@ -280,6 +363,15 @@ export default function AdminQueuePage() {
                 </div>
               </div>
             ))}
+
+            {/* Total time */}
+            <label className="text-cream text-xl block mb-2 mt-6">Total time (minutes)</label>
+            <input
+              type="number"
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-xl placeholder:text-cream/40"
+            />
 
             {/* Actions */}
             <div className="flex gap-3 mt-6">

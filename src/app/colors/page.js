@@ -2,6 +2,8 @@ import { displayFont } from "../fonts";
 import { prisma } from "@/lib/prisma";
 import ColorExplorer from "@/components/ColorExplorer";
 
+export const dynamic = "force-dynamic";
+
 export default async function ColorsPage() {
   const colors = await prisma.color.findMany({
     where: { isActive: true },
