@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { estimateWait } from "@/lib/waitTime";
-import QueueStatus from "@/components/QueueStatus";
 
+// Public endpoint — returns ONLY the two numbers the public /queue page shows.
+// No auth (no client data exposed); no entries returned.
 export const dynamic = "force-dynamic";
 
-export default async function QueuePage() {
+export async function GET() {
   const entries = await prisma.queueEntry.findMany({
     where: { status: { in: ["waiting", "in_progress"] } },
     include: {
@@ -12,16 +14,11 @@ export default async function QueuePage() {
     },
   });
 
-  const peopleWaiting = entries.length;
   const settings = await prisma.salonSettings.findFirst();
   const activeStaff = settings ? settings.activeStaffCount : 3;
 
-  const estimatedWait = estimateWait(entries, activeStaff);
+  const peopleWaiting = entries.length;
+  const estimatedWaitMinutes = estimateWait(entries, activeStaff);
 
-  return (
-    <QueueStatus
-      initialPeopleWaiting={peopleWaiting}
-      initialEstimatedWait={estimatedWait}
-    />
-  );
+  return NextResponse.json({ peopleWaiting, estimatedWaitMinutes });
 }
