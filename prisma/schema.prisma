@@ -37,6 +37,8 @@ model Client {
   createdAt DateTime @default(now())
 
   queueEntries QueueEntry[]
+  hairProfile  ClientHairProfile?
+  formulas     ClientFormula[]
 }
 
 model QueueEntry {
@@ -85,4 +87,31 @@ model Color {
 model SalonSettings {
   id               String @id @default(uuid())
   activeStaffCount Int    @default(3)
+}
+model ClientHairProfile {
+  id             String   @id @default(uuid())
+  clientId       String   @unique
+  client         Client   @relation(fields: [clientId], references: [id])
+  naturalLevel   Int?
+  thickness      String?
+  porosity       String?
+  treatments     String?
+  allergies      String?
+  notes          String?
+  updatedAt      DateTime @updatedAt
+}
+
+model ClientFormula {
+  id             String   @id @default(uuid())
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id])
+  colorCode      String?
+  brand          String?
+  developerVol   String?
+  mixRatio       String?
+  processingMins Int?
+  notes          String?
+  rating         String?
+  performedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
 }

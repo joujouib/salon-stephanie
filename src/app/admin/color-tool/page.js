@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { calculateFormula, TONES } from "@/lib/colorFormula";
 
 const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -29,7 +30,7 @@ function liftLabel(n) {
   return `${Math.abs(n)} ${Math.abs(n) === 1 ? "level" : "levels"} darker (deposit)`;
 }
 
-export default function ColorToolPage() {
+function ColorToolForm() {
   const [currentLevel, setCurrentLevel] = useState(null);
   const [targetLevel, setTargetLevel] = useState(null);
   const [hairStatus, setHairStatus] = useState(null);
@@ -37,6 +38,15 @@ export default function ColorToolPage() {
   const [desiredTone, setDesiredTone] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  // Pre-select "Hair now" when arriving from a client profile with ?level=N (1–10)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const lvl = parseInt(searchParams.get("level"), 10);
+    if (Number.isInteger(lvl) && lvl >= 1 && lvl <= 10) {
+      setCurrentLevel(lvl);
+    }
+  }, [searchParams]);
 
   const allChosen =
     currentLevel !== null &&
@@ -252,5 +262,20 @@ function ResultRow({ label, value }) {
       <span className="text-cream/80 text-xl">{label}</span>
       <span className="text-cream text-2xl font-bold text-right">{value}</span>
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary during prerender
+export default function ColorToolPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="min-h-screen px-6 pt-28 max-w-3xl mx-auto">
+          <p className="text-cream text-2xl">Loading…</p>
+        </section>
+      }
+    >
+      <ColorToolForm />
+    </Suspense>
   );
 }
