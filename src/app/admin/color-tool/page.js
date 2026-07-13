@@ -38,6 +38,8 @@ function ColorToolForm() {
   const [desiredTone, setDesiredTone] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [explanation, setExplanation] = useState(null);
+  const [explaining, setExplaining] = useState(false);
 
   // Pre-select "Hair now" when arriving from a client profile with ?level=N (1–10)
   const searchParams = useSearchParams();
@@ -66,9 +68,32 @@ function ColorToolForm() {
       });
       setResult(r);
       setError(null);
+      setExplanation(null);
     } catch (e) {
       setError(e.message);
       setResult(null);
+    }
+  }
+
+  async function explainFormula() {
+    setExplaining(true);
+    setExplanation(null);
+    try {
+      const res = await fetch("/api/explain-formula", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputs: { currentLevel, targetLevel, hairStatus, hairCondition, desiredTone },
+          result,
+        }),
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      setExplanation(data.explanation);
+    } catch {
+      setExplanation("Could not get an explanation right now — the formula above is still correct.");
+    } finally {
+      setExplaining(false);
     }
   }
 
@@ -80,6 +105,8 @@ function ColorToolForm() {
     setDesiredTone(null);
     setResult(null);
     setError(null);
+    setExplanation(null);
+    setExplaining(false);
   }
 
   // Shared chip classes (mom-friendly: large text, big touch targets)
@@ -240,6 +267,26 @@ function ColorToolForm() {
               <p className="text-2xl font-bold leading-snug">
                 ⚠ Plan for more than one session — do not try to reach the goal in a single visit.
               </p>
+            </div>
+          )}
+
+          {/* AI explanation */}
+          <button
+            onClick={explainFormula}
+            disabled={explaining}
+            className={
+              explaining
+                ? "w-full bg-cream/10 text-cream/40 text-2xl font-bold py-5 rounded-2xl mt-8 cursor-not-allowed"
+                : "w-full bg-gold/20 text-gold border-2 border-gold/50 text-2xl font-bold py-5 rounded-2xl mt-8 hover:bg-gold/30 transition-colors"
+            }
+          >
+            {explaining ? "Thinking…" : "💡 Explain this"}
+          </button>
+
+          {explanation && (
+            <div className="mt-6 bg-cream/10 border-2 border-gold/30 rounded-2xl p-6">
+              <p className="text-gold text-xl font-bold mb-3">Why this formula</p>
+              <p className="text-cream text-xl leading-relaxed whitespace-pre-line">{explanation}</p>
             </div>
           )}
 
