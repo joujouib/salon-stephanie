@@ -11,7 +11,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const { status } = body;
 
-  const validStatuses = ["waiting", "in_progress", "done", "cancelled", "no_show"];
+  const validStatuses = ["waiting", "in_progress", "pending_payment", "done", "cancelled", "no_show"];
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
@@ -19,7 +19,7 @@ export async function PATCH(request, { params }) {
   // Build the update — set timestamps based on the new status
   const data = { status };
   if (status === "in_progress") data.startedAt = new Date();
-  if (status === "done" || status === "cancelled" || status === "no_show") {
+  if (status === "pending_payment" || status === "done" || status === "cancelled" || status === "no_show") {
     data.finishedAt = new Date();
   }
 

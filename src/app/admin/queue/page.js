@@ -19,6 +19,14 @@ export default function AdminQueuePage() {
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
   const [durationMinutes, setDurationMinutes] = useState("");
 
+  const [finalizeEntry, setFinalizeEntry] = useState(null); // the entry being paid, or null
+  const [prices, setPrices] = useState({});                 // { visitServiceId: number }
+  const [discountType, setDiscountType] = useState(null);   // null | "percentage" | "fixed"
+  const [discountValue, setDiscountValue] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState(null); // "cash" | "card" | "transfer"
+  const [tipTotal, setTipTotal] = useState("");
+  const [finalizing, setFinalizing] = useState(false);
+
   async function loadAll() {
     try {
       const [queueRes, clientsRes, servicesRes, settingsRes] = await Promise.all([
@@ -173,6 +181,71 @@ export default function AdminQueuePage() {
     return entry.visitServices.reduce((sum, vs) => sum + vs.service.duration, 0);
   }
 
+  function openFinalize(entry) {
+    setFinalizeEntry(entry);
+    // Pre-fill each service's price with its minimum — she adjusts up from there
+    const initial = {};
+    for (const vs of entry.visitServices) {
+      initial[vs.id] = vs.service.priceMin;
+    }
+    setPrices(initial);
+    setDiscountType(null);
+    setDiscountValue("");
+    setPaymentMethod(null);
+    setTipTotal("");
+  }
+
+  function closeFinalize() {
+    setFinalizeEntry(null);
+  }
+
+  // Display-only math — the server recomputes authoritatively
+  const previewSubtotal = finalizeEntry
+    ? finalizeEntry.visitServices.reduce((sum, vs) => sum + (Number(prices[vs.id]) || 0), 0)
+    : 0;
+
+  let previewTotal = previewSubtotal;
+  const dv = Number(discountValue) || 0;
+  if (discountType === "percentage") previewTotal = Math.round(previewSubtotal * (100 - dv) / 100);
+  if (discountType === "fixed") previewTotal = Math.max(0, previewSubtotal - dv);
+
+  async function confirmPayment() {
+    setFinalizing(true);
+    try {
+      const numericPrices = {};
+      for (const vs of finalizeEntry.visitServices) {
+        numericPrices[vs.id] = Number(prices[vs.id]);
+      }
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          queueEntryId: finalizeEntry.id,
+          prices: numericPrices,
+          discountType,
+          discountValue: discountType ? Number(discountValue) || 0 : null,
+          paymentMethod,
+          tipTotal: Number(tipTotal) || 0,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Could not save the payment.");
+        return;
+      }
+      closeFinalize();
+      loadAll();
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
+  const canConfirm =
+    finalizeEntry &&
+    paymentMethod &&
+    finalizeEntry.visitServices.every((vs) => Number.isInteger(Number(prices[vs.id])) && Number(prices[vs.id]) >= 0) &&
+    (!discountType || discountValue !== "");
+
   // Group services by category for the picker
   const servicesByCategory = services.reduce((groups, s) => {
     (groups[s.category] = groups[s.category] || []).push(s);
@@ -198,7 +271,8 @@ export default function AdminQueuePage() {
   }
 
   const estimatedWait = estimateWait(entries, activeStaffCount);
-
+  const activeEntries = entries.filter((e) => e.status !== "pending_payment");
+  const pendingPayment = entries.filter((e) => e.status === "pending_payment");
   return (
     <section className="min-h-screen px-6 pt-28 pb-24 max-w-3xl mx-auto">
       <h1 className="text-gold text-5xl font-bold">Today's Queue</h1>
@@ -228,6 +302,34 @@ export default function AdminQueuePage() {
       >
         ➕  Add Walk-in
       </button>
+
+      {/* Waiting for payment */}
+      {pendingPayment.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-gold text-2xl font-bold mb-4">💰 Waiting for payment</h2>
+          <div className="space-y-4">
+            {pendingPayment.map((entry) => (
+              <div
+                key={entry.id}
+                className="bg-gold/10 border-2 border-gold rounded-2xl p-6 flex items-center justify-between flex-wrap gap-4"
+              >
+                <div>
+                  <h3 className="text-gold text-2xl font-bold">{entry.client.name}</h3>
+                  <p className="text-cream text-lg mt-1">
+                    {entry.visitServices.map((vs) => vs.service.name).join(" + ")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => openFinalize(entry)}
+                  className="bg-gold text-ink text-xl font-bold px-6 py-4 rounded-xl hover:bg-gold-light transition-colors"
+                >
+                  Take Payment
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Queue list */}
       <div className="mt-8 space-y-5">
@@ -262,7 +364,7 @@ export default function AdminQueuePage() {
                 )}
                 {entry.status === "in_progress" && (
                   <button
-                    onClick={() => updateStatus(entry.id, "done")}
+                    onClick={() => updateStatus(entry.id, "pending_payment")}
                     className="flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl hover:bg-gold-light transition-colors"
                   >
                     Finished
@@ -383,6 +485,129 @@ export default function AdminQueuePage() {
               </button>
               <button
                 onClick={closeForm}
+                className="flex-1 text-cream border-2 border-cream/30 text-xl font-bold py-4 rounded-xl hover:border-cream/60 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Finalize payment modal */}
+      {finalizeEntry && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-ink border-2 border-gold/40 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-gold text-3xl font-bold mb-1">Take Payment</h2>
+            <p className="text-cream text-2xl mb-6">{finalizeEntry.client.name}</p>
+
+            {/* Price per service */}
+            {finalizeEntry.visitServices.map((vs) => (
+              <div key={vs.id} className="mb-5">
+                <label className="text-cream text-xl block mb-2">
+                  {vs.service.name}
+                  <span className="text-cream/60 text-lg"> (${vs.service.priceMin}–{vs.service.priceMax})</span>
+                </label>
+                <input
+                  type="number"
+                  value={prices[vs.id] ?? ""}
+                  onChange={(e) => setPrices({ ...prices, [vs.id]: e.target.value })}
+                  className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-2xl"
+                />
+              </div>
+            ))}
+
+            {/* Discount */}
+            <label className="text-cream text-xl block mb-2 mt-6">Discount</label>
+            <div className="flex gap-3 mb-3">
+              {[
+                { v: null, l: "None" },
+                { v: "percentage", l: "% off" },
+                { v: "fixed", l: "$ off" },
+              ].map((opt) => (
+                <button
+                  key={String(opt.v)}
+                  onClick={() => { setDiscountType(opt.v); setDiscountValue(""); }}
+                  className={
+                    discountType === opt.v
+                      ? "flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl"
+                      : "flex-1 bg-cream/10 text-cream text-xl py-4 rounded-xl border-2 border-cream/30"
+                  }
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+            {discountType && (
+              <input
+                type="number"
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                placeholder={discountType === "percentage" ? "e.g. 10 (%)" : "e.g. 5 ($)"}
+                className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-2xl mb-3 placeholder:text-cream/40"
+              />
+            )}
+
+            {/* Tip */}
+            <label className="text-cream text-xl block mb-2 mt-3">Tip (optional)</label>
+            <input
+              type="number"
+              value={tipTotal}
+              onChange={(e) => setTipTotal(e.target.value)}
+              placeholder="0"
+              className="w-full bg-cream/10 border-2 border-cream/30 rounded-xl px-4 py-4 text-cream text-2xl mb-6 placeholder:text-cream/40"
+            />
+
+            {/* Payment method */}
+            <label className="text-cream text-xl block mb-2">Paid by</label>
+            <div className="flex gap-3 mb-6">
+              {[
+                { v: "cash", l: "💵 Cash" },
+                { v: "card", l: "💳 Card" },
+                { v: "transfer", l: "📱 Transfer" },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setPaymentMethod(opt.v)}
+                  className={
+                    paymentMethod === opt.v
+                      ? "flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl"
+                      : "flex-1 bg-cream/10 text-cream text-xl py-4 rounded-xl border-2 border-cream/30"
+                  }
+                >
+                  {opt.l}
+                </button>
+              ))}
+            </div>
+
+            {/* Live total */}
+            <div className="border-t-2 border-gold/30 pt-4 mb-6">
+              <div className="flex justify-between text-cream text-xl">
+                <span>Subtotal</span><span>${previewSubtotal}</span>
+              </div>
+              {discountType && (
+                <div className="flex justify-between text-cream/70 text-xl mt-1">
+                  <span>After discount</span><span>${previewTotal}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gold text-3xl font-bold mt-2">
+                <span>Total</span><span>${previewTotal}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={confirmPayment}
+                disabled={!canConfirm || finalizing}
+                className={
+                  canConfirm && !finalizing
+                    ? "flex-1 bg-gold text-ink text-xl font-bold py-4 rounded-xl hover:bg-gold-light transition-colors"
+                    : "flex-1 bg-cream/10 text-cream/40 text-xl font-bold py-4 rounded-xl cursor-not-allowed"
+                }
+              >
+                {finalizing ? "Saving…" : "Confirm ✓"}
+              </button>
+              <button
+                onClick={closeFinalize}
                 className="flex-1 text-cream border-2 border-cream/30 text-xl font-bold py-4 rounded-xl hover:border-cream/60 transition-colors"
               >
                 Cancel

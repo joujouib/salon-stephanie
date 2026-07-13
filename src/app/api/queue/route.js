@@ -10,7 +10,7 @@ export async function GET() {
 
   const entries = await prisma.queueEntry.findMany({
     where: {
-      status: { in: ["waiting", "in_progress"] },
+      status: { in: ["waiting", "in_progress", "pending_payment"] },
     },
     include: {
       client: true,

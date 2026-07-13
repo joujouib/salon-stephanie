@@ -39,6 +39,7 @@ model Client {
   queueEntries QueueEntry[]
   hairProfile  ClientHairProfile?
   formulas     ClientFormula[]
+  transactions  Transaction[]
 }
 
 model QueueEntry {
@@ -60,6 +61,8 @@ model QueueEntry {
   durationOverride Int?
 
   createdAt   DateTime @default(now())
+
+  transaction   Transaction?
 }
 model VisitService {
   id           String   @id @default(uuid())
@@ -114,4 +117,20 @@ model ClientFormula {
   rating         String?
   performedAt    DateTime @default(now())
   createdAt      DateTime @default(now())
+}
+model Transaction {
+  id                 String   @id @default(uuid())
+  queueEntryId       String   @unique
+  queueEntry         QueueEntry @relation(fields: [queueEntryId], references: [id])
+  clientId           String
+  client             Client   @relation(fields: [clientId], references: [id])
+  subtotal           Int
+  discountType       String?
+  discountValue      Int?
+  totalAfterDiscount Int
+  paymentMethod      String
+  tipTotal           Int      @default(0)
+  isLocked           Boolean  @default(true)
+  notes              String?
+  createdAt          DateTime @default(now())
 }
