@@ -134,3 +134,14 @@ model Transaction {
   notes              String?
   createdAt          DateTime @default(now())
 }
+model DailyReconciliation {
+  id           String   @id @default(uuid())
+  date         DateTime
+  expectedCash Int
+  actualCash   Int
+  difference   Int
+  tipsTotal    Int
+  notes        String?
+  isLocked     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
